@@ -48,23 +48,6 @@ class WorldFactory:
         
         return cps
 
-    # {
-    #      'entityType': 'Shrimp',
-    #      'cycles': 
-    #      [
-    #          {
-    #          'type': 'C',
-    #          'consume': [('O2', 1, 2), ('CFood', 1, 2)],
-    #          'produce': [('CO2', 1, 3)],
-    #          },
-    #          {
-    #          'type':'N',
-    #          'consume': [('NFood', 1, 2)],
-    #          'produce': [('Shit', 1, 3)],
-    #          }.
-    #      ]
-    # },
-
     def nextName(self, entityType):
         entityName = entityType+str(self.lasteid[entityType])
         self.lasteid[entityType] += 1
