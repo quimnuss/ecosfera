@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
-
+# libraries
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 
 class ConsumerProducer:
     
@@ -111,7 +114,22 @@ class Game:
         entitiesSnapshot = (" ".join(f"{e.id}: {e.accumulated}\t" for e in self.entities))
         return str(self.pool) + ' -- ' + entitiesSnapshot
 
+class PlotManager:
+    
+    def __init__(self):
+        self.df = None
+    
+    def initialize(self):
+        # Data
+        self.df=pd.DataFrame({'x': range(1,11), 'y1': np.random.randn(10), 'y2': np.random.randn(10)+range(1,11), 'y3': np.random.randn(10)+range(11,21) })
 
+    def plot(self):
+        # multiple line plot
+        plt.plot( 'x', 'y1', data=self.df, marker='o', markerfacecolor='blue', markersize=12, color='skyblue', linewidth=4)
+        plt.plot( 'x', 'y2', data=self.df, marker='', color='olive', linewidth=2)
+        plt.plot( 'x', 'y3', data=self.df, marker='', color='olive', linewidth=2, linestyle='dashed', label="toto")
+        plt.legend()
+        plt.show()
 
 
 if __name__ == "__main__":
@@ -120,4 +138,9 @@ if __name__ == "__main__":
     for i in range(300):
         g.tick()
         print(f"{g.tickCount}: {g.snapshot()}")
-
+        
+    p = PlotManager()
+    p.initialize()
+    p.plot()
+    
+    #on spyder, to show plots, run %matplotlib auto
