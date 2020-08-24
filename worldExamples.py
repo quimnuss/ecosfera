@@ -54,7 +54,7 @@ world1 = {
                      'rates': (2, 3),
                      'accumulated': 10,
                      'birthoffset': 10,
-                     'birthmin': 20,
+                     'birthmin': 1,
                  },
                  'N':
                  {
@@ -63,7 +63,7 @@ world1 = {
                      'rates': (2, 3),
                      'accumulated': 10,
                      'birthoffset': 10,
-                     'birthmin': 20,
+                     'birthmin': 1,
                  },
              }
         },

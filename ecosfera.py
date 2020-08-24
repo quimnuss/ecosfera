@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 # libraries
+import os
+
 from bokeh.io import output_notebook, show
 output_notebook()
 from bokeh.plotting import figure, output_file, show
@@ -9,6 +11,18 @@ from worldExamples import world1
 class EcosferaException(Exception):
     """Base class for other exceptions"""
     pass
+
+class bcolors:
+    HEADER = '\033[95m'
+    BLUE = '\033[94m'
+    GREEN = '\x1b[1m\x1b[32m'#'\033[92m'
+    RED = '\x1b[1m\x1b[31m'#'\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\x1b[0m'#'\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+os.system('color 4')
 
 class WorldFactory:
 
@@ -56,19 +70,24 @@ class WorldFactory:
 
     def unpackCPValues(self, entityType, cycleName):
 
-        consumeDict = self.entitiesBase[entityType]['cycles'][cycleName]['consume'] # 'consume': [('CO2', 1, 2)],
-        produceDict = self.entitiesBase[entityType]['cycles'][cycleName]['produce']
+        cycleDict = self.entitiesBase[entityType]['cycles'][cycleName]
+        
+        consumeDict = cycleDict['consume'] # 'consume': [('CO2', 1, 2)],
+        produceDict = cycleDict['produce']
 
-        arates      = self.entitiesBase[entityType]['cycles'][cycleName]['rates']
-        startAccumulated = self.entitiesBase[entityType]['cycles'][cycleName]['accumulated']
+        arates      = cycleDict['rates']
+        startAccumulated = cycleDict['accumulated']
+        
+        birthoffset = cycleDict['birthoffset']
+        birthmin    = cycleDict['birthmin']
 
-        return consumeDict, produceDict, arates, startAccumulated
+        return consumeDict, produceDict, arates, startAccumulated, birthoffset, birthmin
 
     def createConsumerProducer(self, entityName, entityType, cycleName):
         if entityType in self.entityTypes:
             neweid = entityName+'_'+cycleName
 
-            consumeDict, produceDict, arates, startAccumulated = self.unpackCPValues(entityType, cycleName)
+            consumeDict, produceDict, arates, startAccumulated, birthoffset, birthmin = self.unpackCPValues(entityType, cycleName)
 
             newCP = ConsumerProducer(
                 entityType=entityType,
@@ -77,7 +96,9 @@ class WorldFactory:
                 consume=consumeDict,
                 produce=produceDict,
                 rates=arates,
-                accumulated=startAccumulated
+                accumulated=startAccumulated,
+                birthoffset=birthoffset,
+                birthmin=birthmin
             )
             return newCP
 
@@ -93,13 +114,22 @@ class Birther:
     def birthable(self, entity):
         return all(cp.birthable() for cp in entity.cps)
 
-    def births(self, entities):
-        return [self.worldFactory.createEntity(e.entityType) for e in self.entities if self.birthable(e)]
+    def birth(self, parent):
+        entity = self.createEntity(parent.entityType)
+        for cp in entity.cps:
+            cp.accumulated = cp.birthoffset
+        for cp in parent.cps:
+              cp.accumulated -= cp.birthoffset
+        print(colored(f"{parent.name} gives birth to {entity.name}", 'green'))
+        self.entities.append(entity)
+
+    def tick(self):
+        return [self.birth(e) for e in self.entities if self.birthable(e)]
 
 
 class ConsumerProducer:
 
-    def __init__(self, entityName, entityType, eid, consume, produce, rates, accumulated=3):
+    def __init__(self, entityName, entityType, eid, consume, produce, rates, accumulated, birthoffset, birthmin):
         self.entityName = entityName
         self.entityType = entityType
         self.eid = eid
@@ -110,6 +140,8 @@ class ConsumerProducer:
         self.rates = rates
         self.consumeTimer = 0
         self.produceTimer = 0
+        self.birthoffset = birthoffset
+        self.birthmin = birthmin
 
     def toString(self):
         return f"{self.eid} {self.consumeRecipe} {self.produceRecipe} {self.rates} {self.accumulated} {self.reason}"
@@ -142,6 +174,9 @@ class ConsumerProducer:
     def snapshot(self):
         return f"{self.eid}: {self.accumulated}"
 
+    def birthable(self):
+        return self.accumulated > self.birthmin and self.accumulated > self.birthmin + self.birthoffset
+
     def tick(self, pool):
         consumed = None
         if self.consumeTimer <= 0:
@@ -172,7 +207,7 @@ class Entity:
 
 
 class Game:
-    def __init__(self, entities, pool):
+    def __init__(self, birther, entities, pool):
         self.tickCount = 0
         self.entities = entities
         self.pool = pool
@@ -180,6 +215,7 @@ class Game:
         self.poolhistory.append(self.pool)
         self.log = []
         self.plotdata = {'time' : [],}
+        self.birther = birther
 
     # def loadWorld(self, yaml):
     #     shrimp1_C = ConsumerProducer(entityName="Shrimp1", eid="Shrimp1_C", consume={'O2': 1}, produce={'CO2': 1}, rates=(4,6), accumulated=10)
@@ -212,12 +248,16 @@ class Game:
                 if didProduce is False:
                     dead = True
                     self.log.append(f"{cp.eid} will die because {cp.reason}")
-                    print(f"{cp.eid} will die because {cp.reason}")
+                    print(f"{bcolors.RED}{cp.eid} will die because {cp.reason}{bcolors.ENDC}")
             if dead:
                 deadEntities.append(e)
                 [cp.breakout(self.pool) for cp in e.cps]
 
         [self.entities.remove(e) for e in deadEntities]
+        
+        # births
+        self.birther.tick()
+        
         self.poolhistory.append(self.pool)
         self.tickCount += 1
 
@@ -257,8 +297,10 @@ if __name__ == "__main__":
 
     entities, pool = factory.createWorld(world1)
     factory.printWorld(entities, pool)
-
-    g = Game(entities, pool)
+    
+    birther = Birther(factory, entities)
+    
+    g = Game(birther, entities, pool)
     print("\n")
     print(g.toString())
     print("\nStart simulation\n")
