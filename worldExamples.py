@@ -32,6 +32,9 @@ world1 = {
          'entityType': 'Algae',
         },
         {
+         'entityType': 'Algae',
+        },
+        {
          'entityType': 'Bacteria',
         },
         {
@@ -62,7 +65,7 @@ world1 = {
                      'produce': {'Shit': 1},
                      'rates': (2, 3),
                      'accumulated': 10,
-                     'birthoffset': 10,
+                     'birthoffset': 2,
                      'birthmin': 1,
                  },
              }

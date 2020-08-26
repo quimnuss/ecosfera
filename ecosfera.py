@@ -5,6 +5,8 @@ import os
 from bokeh.io import output_notebook, show
 output_notebook()
 from bokeh.plotting import figure, output_file, show
+from bokeh.models import ColumnDataSource
+from bokeh.palettes import Category20 as palette
 
 from worldExamples import world1
 
@@ -46,22 +48,27 @@ class WorldFactory:
 
         return entities, pool
 
+    def createBaseEntity(self, entityType):
+        # create base instance
+        entityName = self.nextName(entityType)
+
+        cps = [self.createConsumerProducer(entityName, entityType, c) for c in self.entitiesBase[entityType]['cycles'].keys()]
+        
+        return Entity(entityName, entityType, cps)
+
     def createEntity(self, serializedEntity):
 
         cps = []
         # create base instance
         entityType = serializedEntity['entityType']
-        entityName = self.nextName(entityType)
-
-        for c in self.entitiesBase[entityType]['cycles'].keys():
-            cp = self.createConsumerProducer(entityName, serializedEntity['entityType'], c)
-
+        entity = self.createBaseEntity(entityType)
+        
+        for cp in entity.cps:
             # TODO update dictionary of serializedEntity instead of updated the accumulated value
             # update if it's there
-            cp.accumulated = serializedEntity.get('cycles', {}).get(c,{}).get('accumulated', cp.accumulated)
-            cps.append(cp)
+            cp.accumulated = serializedEntity.get('cycles', {}).get(cp.cycle,{}).get('accumulated', cp.accumulated)
 
-        return Entity(entityName, entityType, cps)
+        return entity
 
     def nextName(self, entityType):
         entityName = entityType+str(self.lasteid[entityType])
@@ -93,6 +100,7 @@ class WorldFactory:
                 entityType=entityType,
                 entityName=entityName,
                 eid=neweid,
+                cycle=cycleName,
                 consume=consumeDict,
                 produce=produceDict,
                 rates=arates,
@@ -115,13 +123,15 @@ class Birther:
         return all(cp.birthable() for cp in entity.cps)
 
     def birth(self, parent):
-        entity = self.createEntity(parent.entityType)
+        entity = self.worldFactory.createBaseEntity(parent.entityType)
+        parentStrBeforeBirth = parent.toShortString()
         for cp in entity.cps:
             cp.accumulated = cp.birthoffset
         for cp in parent.cps:
               cp.accumulated -= cp.birthoffset
-        print(colored(f"{parent.name} gives birth to {entity.name}", 'green'))
+        print(f"{bcolors.GREEN}{parentStrBeforeBirth} gives birth to {entity.toShortString()} with a cost of {[cp.birthoffset for cp in entity.cps]}{bcolors.ENDC}")
         self.entities.append(entity)
+        return entity
 
     def tick(self):
         return [self.birth(e) for e in self.entities if self.birthable(e)]
@@ -129,7 +139,7 @@ class Birther:
 
 class ConsumerProducer:
 
-    def __init__(self, entityName, entityType, eid, consume, produce, rates, accumulated, birthoffset, birthmin):
+    def __init__(self, entityName, entityType, eid, cycle, consume, produce, rates, accumulated, birthoffset, birthmin):
         self.entityName = entityName
         self.entityType = entityType
         self.eid = eid
@@ -142,6 +152,7 @@ class ConsumerProducer:
         self.produceTimer = 0
         self.birthoffset = birthoffset
         self.birthmin = birthmin
+        self.cycle = cycle
 
     def toString(self):
         return f"{self.eid} {self.consumeRecipe} {self.produceRecipe} {self.rates} {self.accumulated} {self.reason}"
@@ -205,6 +216,8 @@ class Entity:
     def toString(self):
         return " ".join(f"{self.name} {cp.toString()}" for cp in self.cps)
 
+    def toShortString(self):
+        return " ".join(f"{self.name} {cp.cycle} {cp.accumulated}" for cp in self.cps)
 
 class Game:
     def __init__(self, birther, entities, pool):
@@ -214,8 +227,9 @@ class Game:
         self.poolhistory = []
         self.poolhistory.append(self.pool)
         self.log = []
-        self.plotdata = {'time' : [],}
         self.birther = birther
+        self.plotdata = {k:(1, [v]) for (k,v) in pool.items()}
+        self.plotdata.update({cp.eid: (1,[cp.accumulated]) for e in entities for cp in e.cps})
 
     # def loadWorld(self, yaml):
     #     shrimp1_C = ConsumerProducer(entityName="Shrimp1", eid="Shrimp1_C", consume={'O2': 1}, produce={'CO2': 1}, rates=(4,6), accumulated=10)
@@ -235,6 +249,12 @@ class Game:
     def setState(self, entities, pool):
         self.entities = entities
         self.pool = pool
+
+    def savePlotPoint(self, pool, entities, tick, births, deadEntities=None):
+        [self.plotdata[k][1].append(v) for k,v in pool.items()]
+        [self.plotdata[cp.eid][1].append(cp.accumulated) for e in entities if e not in births for cp in e.cps]
+        self.plotdata.update({cp.eid: (tick, [cp.accumulated]) for e in births for cp in e.cps})
+        
 
     def tick(self):
         deadEntities = []
@@ -256,9 +276,10 @@ class Game:
         [self.entities.remove(e) for e in deadEntities]
         
         # births
-        self.birther.tick()
+        births = self.birther.tick()
         
         self.poolhistory.append(self.pool)
+        self.savePlotPoint(self.pool, self.entities, self.tickCount, births, deadEntities)
         self.tickCount += 1
 
     def snapshot(self):
@@ -284,11 +305,7 @@ class PlotManager:
 
     def plot(self):
         # multiple line plot
-        plt.plot( 'x', 'y1', data=self.df, marker='o', markerfacecolor='blue', markersize=12, color='skyblue', linewidth=4)
-        plt.plot( 'x', 'y2', data=self.df, marker='', color='olive', linewidth=2)
-        plt.plot( 'x', 'y3', data=self.df, marker='', color='olive', linewidth=2, linestyle='dashed', label="toto")
-        plt.legend()
-        plt.show()
+        pass
 
 
 if __name__ == "__main__":
@@ -310,27 +327,47 @@ if __name__ == "__main__":
         if g.isDead():
             break
 
+    #print(g.plotdata)
 
     #print(g.log)
 
-    # p = PlotManager()
-    # p.initialize()
-    # p.plot()
+    p = PlotManager()
+    p.initialize()
+    p.plot()
 
-    # #on spyder, to show plots, run %matplotlib auto
+    #on spyder, to show plots, run %matplotlib auto
+    
+    # output to static HTML file
+    output_file("ecosfera_world1.html")
 
-    # # prepare some data
-    # x = [1, 2, 3, 4, 5]
-    # y = [6, 7, 2, 4, 5]
+    # create a new plot with a title and axis labels
+    p = figure(title="Ecosfera", tools="pan,box_zoom,wheel_zoom,zoom_in,zoom_out,reset,save",
+               x_axis_label='time', y_axis_label='quantity', plot_width=1000)
 
-    # # output to static HTML file
-    # output_file("lines.html")
+    # xs = [ [i for i in range(v[0],len(v[1]))] for k,v in g.plotdata.items()]
+    # ys = [ v[1] for k,v in g.plotdata.items()]
+    colors = palette[20]
+    
+    i = 0
+    for k,v in g.plotdata.items():
+        lastx = v[0] + len(v[1])
+        x = [t for t in range(v[0],lastx)]
+        y = v[1]
+        p.line(x, y, legend_label=k, line_width=2, line_color=colors[i%20], alpha=0.8)
+        if v[0] > 1:
+            p.circle(v[0], v[1][0], line_color='green')
+        p.circle(lastx, v[1][-1], line_color='red')
+        i += 1
+    
+        
+    # add a line renderer with legend and line thickness
+    #p.multi_line(xs, ys)
+    # p.multi_line(xs='xdata', ys='ydata', source=ColumnDataSource(data), line_color='color')
 
-    # # create a new plot with a title and axis labels
-    # p = figure(title="simple line example", x_axis_label='x', y_axis_label='y')
+    
+    p.legend.location = "top_right"
+    p.legend.click_policy="hide"
+    
 
-    # # add a line renderer with legend and line thickness
-    # p.line(x, y, legend_label="Temp.", line_width=2)
-
-    # # show the results
-    # show(p)
+    # show the results
+    show(p)
