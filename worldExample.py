@@ -54,19 +54,19 @@ world1 = {
                  {
                      'consume': {'O2': 1, 'CFood': 1},
                      'produce': {'CO2': 1},
-                     'rates': (2, 3),
+                     'rates': (4, 5),
                      'accumulated': 10,
                      'birthoffset': 10,
-                     'birthmin': 1,
+                     'birthmin': 15,
                  },
                  'N':
                  {
                      'consume': {'NFood': 1},
                      'produce': {'Shit': 1},
-                     'rates': (2, 3),
+                     'rates': (5, 6),
                      'accumulated': 10,
-                     'birthoffset': 2,
-                     'birthmin': 1,
+                     'birthoffset': 10,
+                     'birthmin': 15,
                  },
              }
         },
@@ -78,7 +78,7 @@ world1 = {
                  {
                      'consume': {'CO2': 1},
                      'produce': {'O2': 1, 'CFood': 1},
-                     'rates': (2, 3),
+                     'rates': (1, 2),
                      'accumulated': 5,
                      'birthoffset': 10,
                      'birthmin': 20,
@@ -102,10 +102,10 @@ world1 = {
                  {
                      'consume': {'Shit': 1},
                      'produce': {'NH3': 1},
-                     'rates': (6, 8),
-                     'accumulated': 5,
-                     'birthoffset': 10,
-                     'birthmin': 20,
+                     'rates': (5, 6),
+                     'accumulated': 10,
+                     'birthoffset': 20,
+                     'birthmin': 40,
                  },
              }
         },

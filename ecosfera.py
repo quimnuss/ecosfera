@@ -8,7 +8,7 @@ from bokeh.plotting import figure, output_file, show
 from bokeh.models import ColumnDataSource
 from bokeh.palettes import Category20 as palette
 
-from worldExamples import world1
+from worldLibrary import *
 
 class EcosferaException(Exception):
     """Base class for other exceptions"""
@@ -122,19 +122,19 @@ class Birther:
     def birthable(self, entity):
         return all(cp.birthable() for cp in entity.cps)
 
-    def birth(self, parent):
+    def birth(self, parent, tickCount=None):
         entity = self.worldFactory.createBaseEntity(parent.entityType)
         parentStrBeforeBirth = parent.toShortString()
         for cp in entity.cps:
             cp.accumulated = cp.birthoffset
         for cp in parent.cps:
               cp.accumulated -= cp.birthoffset
-        print(f"{bcolors.GREEN}{parentStrBeforeBirth} gives birth to {entity.toShortString()} with a cost of {[cp.birthoffset for cp in entity.cps]}{bcolors.ENDC}")
+        print(f"[{tickCount}]{bcolors.GREEN}{parentStrBeforeBirth} gives birth to {entity.toShortString()} with a cost of {[cp.birthoffset for cp in entity.cps]}{bcolors.ENDC}")
         self.entities.append(entity)
         return entity
 
-    def tick(self):
-        return [self.birth(e) for e in self.entities if self.birthable(e)]
+    def tick(self, tickCount = None):
+        return [self.birth(e, tickCount) for e in self.entities if self.birthable(e)]
 
 
 class ConsumerProducer:
@@ -258,7 +258,9 @@ class Game:
 
     def tick(self):
         deadEntities = []
-
+        
+        self.entities.sort(key=lambda e: e.name)
+        
         for e in self.entities:
             dead = False
             for cp in e.cps:
@@ -268,7 +270,7 @@ class Game:
                 if didProduce is False:
                     dead = True
                     self.log.append(f"{cp.eid} will die because {cp.reason}")
-                    print(f"{bcolors.RED}{cp.eid} will die because {cp.reason}{bcolors.ENDC}")
+                    print(f"[{self.tickCount}] {bcolors.RED}{cp.eid} will die because {cp.reason}{bcolors.ENDC}")
             if dead:
                 deadEntities.append(e)
                 [cp.breakout(self.pool) for cp in e.cps]
@@ -276,7 +278,7 @@ class Game:
         [self.entities.remove(e) for e in deadEntities]
         
         # births
-        births = self.birther.tick()
+        births = self.birther.tick(self.tickCount)
         
         self.poolhistory.append(self.pool)
         self.savePlotPoint(self.pool, self.entities, self.tickCount, births, deadEntities)
@@ -294,62 +296,27 @@ class Game:
         return str(self.pool) + '\n' + entitiesStr
 
 
-class PlotManager:
-
-    def __init__(self):
-        self.df = None
-
-    def initialize(self, ):
-        # Data
-        pass
-
-    def plot(self):
-        # multiple line plot
-        pass
-
-
-if __name__ == "__main__":
-
-    factory = WorldFactory()
-
-    entities, pool = factory.createWorld(world1)
-    factory.printWorld(entities, pool)
+def plotEcosystem(plotdata, result):
     
-    birther = Birther(factory, entities)
-    
-    g = Game(birther, entities, pool)
-    print("\n")
-    print(g.toString())
-    print("\nStart simulation\n")
-    for i in range(331):
-        g.tick()
-        print(f"{g.tickCount}: {g.snapshot()}")
-        if g.isDead():
-            break
-
-    #print(g.plotdata)
-
-    #print(g.log)
-
-    p = PlotManager()
-    p.initialize()
-    p.plot()
+    print("Generating graph...")
 
     #on spyder, to show plots, run %matplotlib auto
     
     # output to static HTML file
-    output_file("ecosfera_world1.html")
+    output_file("ecosfera_world.html")
 
     # create a new plot with a title and axis labels
-    p = figure(title="Ecosfera", tools="pan,box_zoom,wheel_zoom,zoom_in,zoom_out,reset,save",
-               x_axis_label='time', y_axis_label='quantity', plot_width=1000)
+    p = figure(title=f"Ecosfera - {result}", tools="pan,box_zoom,wheel_zoom,zoom_in,zoom_out,reset,save",
+               x_axis_label='time', y_axis_label='quantity', plot_width=1000, toolbar_location="above")
 
     # xs = [ [i for i in range(v[0],len(v[1]))] for k,v in g.plotdata.items()]
     # ys = [ v[1] for k,v in g.plotdata.items()]
     colors = palette[20]
     
     i = 0
-    for k,v in g.plotdata.items():
+    for k,v in plotdata.items():
+        if i%10 == 0:
+            print(f"Generating {i}/{len(plotdata.items())} entity")
         lastx = v[0] + len(v[1])
         x = [t for t in range(v[0],lastx)]
         y = v[1]
@@ -359,15 +326,63 @@ if __name__ == "__main__":
         p.circle(lastx, v[1][-1], line_color='red')
         i += 1
     
-        
+    print(f"{i}/{len(plotdata.items())}")
+    
     # add a line renderer with legend and line thickness
     #p.multi_line(xs, ys)
     # p.multi_line(xs='xdata', ys='ydata', source=ColumnDataSource(data), line_color='color')
 
     
-    p.legend.location = "top_right"
+    p.legend.location = "top_left"
     p.legend.click_policy="hide"
     
+    print("Graph generated")
 
     # show the results
     show(p)
+
+
+def runWorld(world, nticks, verbose):
+    
+    factory = WorldFactory()
+
+    entities, pool = factory.createWorld(world)
+    if verbose > 0:
+        factory.printWorld(entities, pool)
+    
+    birther = Birther(factory, entities)
+    
+    g = Game(birther, entities, pool)
+    print("\n")
+    if verbose > 0:
+        print(g.toString())
+    print("\nStart simulation\n")
+    for i in range(nticks):
+        g.tick()
+        if verbose > 0:
+            print(f"{g.tickCount}: {g.snapshot()}")
+        if g.isDead():
+            break
+
+    if not g.isDead():
+        print(f"\n{bcolors.GREEN}Ecosystem survived {nticks} ticks{bcolors.ENDC}")
+        result = "Survived"
+    else:
+        print(f"\n{bcolors.RED}Ecosystem is dead by {g.tickCount} ticks{bcolors.ENDC}")
+        result = "Dead"
+
+    plotEcosystem(g.plotdata, result)
+
+
+if __name__ == "__main__":
+
+    verbose = 0 
+    nticks = 10000
+
+    runWorld(world_selected, nticks, verbose)
+
+    #print(g.plotdata)
+
+    #print(g.log)
+
+    print("Job's Done, Have A Nice Day!")
