@@ -41,4 +41,4 @@ output this graph:
 If you want to change the initial conditions, do so on step 2 and rerun that step
 
 Alternativelly, you can also change the initial conditions of the python script
-[modifying the world_slected in worldLibrary.py](https://github.com/quimnuss/ecosfera/blob/master/worldLibrary.py#L4)
+[modifying the world_selected in worldLibrary.py](https://github.com/quimnuss/ecosfera/blob/master/worldLibrary.py#L4)
