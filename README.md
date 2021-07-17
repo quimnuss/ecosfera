@@ -20,7 +20,7 @@ you can run the default world with:
 
 `python ecosfera.py`
 
-it will generate an interctive resource graph as html as well as output
+it will generate an [interactive resource graph](ecosfera_world.html) as html as well as output
 a log of birth and death in the console.
 
 you can run the jupyter with:
