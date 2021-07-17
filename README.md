@@ -4,6 +4,10 @@ Ecosystem in a bottle python simulation
 
 # prerequisites
 
+## python
+
+tested with python 3.6 and 3.8
+
 ## third party modules required
 
 `pip install bokeh`
