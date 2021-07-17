@@ -24,7 +24,9 @@ class bcolors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
-os.system('color 4')
+
+if os.name == 'nt':
+    os.system('color 4')
 
 class WorldFactory:
 
@@ -53,7 +55,7 @@ class WorldFactory:
         entityName = self.nextName(entityType)
 
         cps = [self.createConsumerProducer(entityName, entityType, c) for c in self.entitiesBase[entityType]['cycles'].keys()]
-        
+
         return Entity(entityName, entityType, cps)
 
     def createEntity(self, serializedEntity):
@@ -62,7 +64,7 @@ class WorldFactory:
         # create base instance
         entityType = serializedEntity['entityType']
         entity = self.createBaseEntity(entityType)
-        
+
         for cp in entity.cps:
             # TODO update dictionary of serializedEntity instead of updated the accumulated value
             # update if it's there
@@ -78,13 +80,13 @@ class WorldFactory:
     def unpackCPValues(self, entityType, cycleName):
 
         cycleDict = self.entitiesBase[entityType]['cycles'][cycleName]
-        
+
         consumeDict = cycleDict['consume'] # 'consume': [('CO2', 1, 2)],
         produceDict = cycleDict['produce']
 
         arates      = cycleDict['rates']
         startAccumulated = cycleDict['accumulated']
-        
+
         birthoffset = cycleDict['birthoffset']
         birthmin    = cycleDict['birthmin']
 
@@ -254,13 +256,13 @@ class Game:
         [self.plotdata[k][1].append(v) for k,v in pool.items()]
         [self.plotdata[cp.eid][1].append(cp.accumulated) for e in entities if e not in births for cp in e.cps]
         self.plotdata.update({cp.eid: (tick, [cp.accumulated]) for e in births for cp in e.cps})
-        
+
 
     def tick(self):
         deadEntities = []
-        
+
         self.entities.sort(key=lambda e: e.name)
-        
+
         for e in self.entities:
             dead = False
             for cp in e.cps:
@@ -276,10 +278,10 @@ class Game:
                 [cp.breakout(self.pool) for cp in e.cps]
 
         [self.entities.remove(e) for e in deadEntities]
-        
+
         # births
         births = self.birther.tick(self.tickCount)
-        
+
         self.poolhistory.append(self.pool)
         self.savePlotPoint(self.pool, self.entities, self.tickCount, births, deadEntities)
         self.tickCount += 1
@@ -297,11 +299,11 @@ class Game:
 
 
 def plotEcosystem(plotdata, result):
-    
+
     print("Generating graph...")
 
     #on spyder, to show plots, run %matplotlib auto
-    
+
     # output to static HTML file
     output_file("ecosfera_world.html")
 
@@ -312,7 +314,7 @@ def plotEcosystem(plotdata, result):
     # xs = [ [i for i in range(v[0],len(v[1]))] for k,v in g.plotdata.items()]
     # ys = [ v[1] for k,v in g.plotdata.items()]
     colors = palette[20]
-    
+
     i = 0
     for k,v in plotdata.items():
         if i%10 == 0:
@@ -325,17 +327,17 @@ def plotEcosystem(plotdata, result):
             p.circle(v[0], v[1][0], line_color='green')
         p.circle(lastx, v[1][-1], line_color='red')
         i += 1
-    
+
     print(f"{i}/{len(plotdata.items())}")
-    
+
     # add a line renderer with legend and line thickness
     #p.multi_line(xs, ys)
     # p.multi_line(xs='xdata', ys='ydata', source=ColumnDataSource(data), line_color='color')
 
-    
+
     p.legend.location = "top_left"
     p.legend.click_policy="hide"
-    
+
     print("Graph generated")
 
     # show the results
@@ -343,15 +345,15 @@ def plotEcosystem(plotdata, result):
 
 
 def runWorld(world, nticks, verbose):
-    
+
     factory = WorldFactory()
 
     entities, pool = factory.createWorld(world)
     if verbose > 0:
         factory.printWorld(entities, pool)
-    
+
     birther = Birther(factory, entities)
-    
+
     g = Game(birther, entities, pool)
     print("\n")
     if verbose > 0:
@@ -376,7 +378,7 @@ def runWorld(world, nticks, verbose):
 
 if __name__ == "__main__":
 
-    verbose = 0 
+    verbose = 0
     nticks = 10000
 
     runWorld(world_selected, nticks, verbose)
